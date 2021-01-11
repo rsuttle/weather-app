@@ -12,10 +12,69 @@ import {
 import MapComponent from "./components/Map"
 import testImage from "./images/testradar.PNG";
 import blurredTestImage from "./images/testradar.PNG"
-import { clearStorage } from 'mapbox-gl';
+
 import { act } from 'react-dom/test-utils';
 var Color = require("color");
 const proj4 = require("proj4");
+
+
+//Applies a Gaussian blur to 2d array of numbers, and returns the blurred 2d array.
+const gaussianBlur = (image) => {
+  //st dev = 4, kernel size = 5
+  const filter = [0.187691,	0.206038, 0.212543,0.206038,0.187691];
+  
+  //horizontal blur
+  var blurredImage = [];
+  for(let row=0;row<image.length;row++){
+    let blurredRow = [];
+    for(let col = 0; col<image[row].length;col++){
+      let newVal = 0;
+      for(let offset = -2; offset<=2;offset++){
+        if(col+offset>0 && col+offset<image[row].length){  //in bounds
+          newVal += image[row][col+offset]*filter[offset+2];
+        }
+      }
+      blurredRow.push(newVal);
+      newVal = 0;
+    }
+    blurredImage.push(blurredRow);
+    blurredRow = [];
+  }
+
+  //vertical blur
+  var blurredImageTwo = [];
+  for(let col=0;col<blurredImage[0].length;col++){
+    let blurredCol = [];
+    for(let row = 0; row<blurredImage.length;row++){
+      let newVal = 0;
+      for(let offset = -2; offset<=2;offset++){
+        if(row+offset>0 && row+offset<blurredImage.length){  //in bounds
+          newVal += blurredImage[row+offset][col]*filter[offset+2];
+        }
+      }
+      blurredCol.push(newVal);
+      newVal = 0;
+    }
+    blurredImageTwo.push(blurredCol);
+    blurredCol = [];
+  }
+
+  //rotate image back to original orientation
+  var blurredImageFinal = [];
+  for(let col=0;col<blurredImageTwo[0].length;col++){
+    
+    for(let row = 0; row<blurredImageTwo.length;row++){
+      
+      blurredImageFinal.push(blurredImageTwo[row][col]);
+    
+    }
+    
+    
+  }
+
+  return blurredImageFinal;
+
+}
 
 //Converts an array of planar coordinates to their latitude/longitude equivalent.
 const convertCoordinatesToLatLong = (oldCoordinates, minLng, maxLng, minLat, maxLat, width, height) => {
@@ -44,14 +103,18 @@ const convertCoordinatesToLatLong = (oldCoordinates, minLng, maxLng, minLat, max
 
 }
 
-
+//Takes in 1D array of pixel values, feeds it to the contour generator, and then returns the generated
+//geoJson data.
 const convertPixelstoGeoJson = (pixelVals) => {
   let w = 600;
   let h = 629;
 
+  
 
   //creates geoJSON contour generator, results in geojson with bounds of inputted size
-  var polygons = contours().size([600, 629]).smooth(true).thresholds([0.2, 1.2, 2.2, 3.2, 4.2, 5.2])
+  var polygons = contours().size([600, 629]).smooth(true).thresholds([0.8,1.8,2.8,3.8,4.8,5.8,6.8,7.8,8.8])
+  
+  //.thresholds([1,2,3,4,5,6,7,8,9])
 
   let pls = polygons(pixelVals);
 
@@ -71,7 +134,7 @@ const convertPixelstoGeoJson = (pixelVals) => {
       //some of them are 2+d arrays
 
       if (actualPolygon.length > 1) {
-        console.log("weird array detected: ", actualPolygon);
+        //console.log("weird array detected: ", actualPolygon);
         actualPolygon.forEach((arr) => {
           let convertedArr = [convertCoordinatesToLatLong(arr,-96, -78, 31, 48, w, h)];
           //let convertedArr = [arr];
@@ -119,6 +182,8 @@ const convertPixelstoGeoJson = (pixelVals) => {
 
 }
 
+//Takes in a radar image in RGBA format (from canvas) and converts it to a 1D array
+//of values based on the color of each pixel. The array is then ready to pass to the contour generator.
 const convertRGBAToPixels = (rgbaArray) => {
 
 
@@ -214,7 +279,23 @@ function App() {
 
       var imageConvertedToValues = convertRGBAToPixels(myImageData.data);
       console.log(imageConvertedToValues)
-      convertPixelstoGeoJson(imageConvertedToValues);
+      //convertPixelstoGeoJson(imageConvertedToValues);
+
+      //convert the pixel vals to a 2d array so they can be processed by the blurring function
+      var imageConvertedToValuesBut2d = [];
+      for(let count = 0; count < 629; count++){
+        var tempRow = [];
+        for(let col = 0; col < 600;col++){
+          tempRow.push(imageConvertedToValues[count*600+col]);
+        }
+        imageConvertedToValuesBut2d.push(tempRow);
+        tempRow = [];
+      }
+      
+      var blurredImage = gaussianBlur(imageConvertedToValuesBut2d);
+      console.log(blurredImage);
+      convertPixelstoGeoJson(blurredImage);
+
 
     }, false);
     radarImg.src = blurredTestImage;
@@ -246,7 +327,7 @@ function App() {
 
           <Switch>
             <Route path="/map">
-              {/* <MapComponent/> */}
+              { <MapComponent/> }
             </Route>
             <Route path="/users">
               <Users />
