@@ -12,26 +12,26 @@ import {
 import MapComponent from "./components/Map"
 import testImage from "./images/testradar.PNG";
 import blurredTestImage from "./images/testradar.PNG"
-
+import proj4 from "proj4"
 import { act } from 'react-dom/test-utils';
 var Color = require("color");
-const proj4 = require("proj4");
+//const proj4 = require("proj4");
 
 
 //Applies a Gaussian blur to 2d array of numbers, and returns the blurred 2d array.
 const gaussianBlur = (image) => {
   //st dev = 4, kernel size = 5
-  const filter = [0.187691,	0.206038, 0.212543,0.206038,0.187691];
-  
+  const filter = [0.187691, 0.206038, 0.212543, 0.206038, 0.187691];
+
   //horizontal blur
   var blurredImage = [];
-  for(let row=0;row<image.length;row++){
+  for (let row = 0; row < image.length; row++) {
     let blurredRow = [];
-    for(let col = 0; col<image[row].length;col++){
+    for (let col = 0; col < image[row].length; col++) {
       let newVal = 0;
-      for(let offset = -2; offset<=2;offset++){
-        if(col+offset>0 && col+offset<image[row].length){  //in bounds
-          newVal += image[row][col+offset]*filter[offset+2];
+      for (let offset = -2; offset <= 2; offset++) {
+        if (col + offset > 0 && col + offset < image[row].length) {  //in bounds
+          newVal += image[row][col + offset] * filter[offset + 2];
         }
       }
       blurredRow.push(newVal);
@@ -43,13 +43,13 @@ const gaussianBlur = (image) => {
 
   //vertical blur
   var blurredImageTwo = [];
-  for(let col=0;col<blurredImage[0].length;col++){
+  for (let col = 0; col < blurredImage[0].length; col++) {
     let blurredCol = [];
-    for(let row = 0; row<blurredImage.length;row++){
+    for (let row = 0; row < blurredImage.length; row++) {
       let newVal = 0;
-      for(let offset = -2; offset<=2;offset++){
-        if(row+offset>0 && row+offset<blurredImage.length){  //in bounds
-          newVal += blurredImage[row+offset][col]*filter[offset+2];
+      for (let offset = -2; offset <= 2; offset++) {
+        if (row + offset > 0 && row + offset < blurredImage.length) {  //in bounds
+          newVal += blurredImage[row + offset][col] * filter[offset + 2];
         }
       }
       blurredCol.push(newVal);
@@ -61,15 +61,15 @@ const gaussianBlur = (image) => {
 
   //rotate image back to original orientation
   var blurredImageFinal = [];
-  for(let col=0;col<blurredImageTwo[0].length;col++){
-    
-    for(let row = 0; row<blurredImageTwo.length;row++){
-      
+  for (let col = 0; col < blurredImageTwo[0].length; col++) {
+
+    for (let row = 0; row < blurredImageTwo.length; row++) {
+
       blurredImageFinal.push(blurredImageTwo[row][col]);
-    
+
     }
-    
-    
+
+
   }
 
   return blurredImageFinal;
@@ -86,13 +86,15 @@ const convertCoordinatesToLatLong = (oldCoordinates, minLng, maxLng, minLat, max
 
     // let newCoord = proj4('EPSG:3857', 'EPSG:4326', [
     //   minLng + (maxLng - minLng) * (oldCoord[0] / width),
-    //   maxLat - (maxLat - minLat) * (oldCoord[1] / height)
+    //   minLat + (maxLat - minLat) * (oldCoord[1] / height)
     // ]);
+
+
 
     let newCoord = [minLng + (maxLng - minLng) * (oldCoord[0] / width),
     maxLat - (maxLat - minLat) * (oldCoord[1] / height)];
 
-    //let newCoord = [maxLat - (maxLat - minLat) * (oldCoord[1] / height),minLng + (maxLng - minLng) * (oldCoord[0] / width)];
+
 
 
 
@@ -109,16 +111,23 @@ const convertPixelstoGeoJson = (pixelVals) => {
   let w = 600;
   let h = 629;
 
-  
+
 
   //creates geoJSON contour generator, results in geojson with bounds of inputted size
-  var polygons = contours().size([600, 629]).smooth(true).thresholds([0.8,1.8,2.8,3.8,4.8,5.8,6.8,7.8,8.8])
-  
+  var polygons = contours().size([600, 629]).smooth(true).thresholds([0.8, 1.8, 2.8, 3.8, 4.8, 5.8, 6.8, 7.8, 8.8])
+
   //.thresholds([1,2,3,4,5,6,7,8,9])
 
-  let pls = polygons(pixelVals);
+  var pls = polygons(pixelVals);
 
-  console.log(pls);
+  
+  // let tempResultgeojson = {
+  //   type: 'FeatureCollection',
+  //   features: []
+  // };
+  // tempResultgeojson.features = pls;
+  // console.log("Here it is: ", JSON.stringify(tempResultgeojson));
+
 
   let resultgeojson = {
     type: 'FeatureCollection',
@@ -127,51 +136,27 @@ const convertPixelstoGeoJson = (pixelVals) => {
 
 
   pls.forEach((multipolygon) => {
+    
+    var newMultiPolygon = {
+      type: 'MultiPolygon',
+      value: multipolygon.value,
+      coordinates: []
+      
+    
+    }
+    multipolygon.coordinates.forEach((polygon) => {
+      var newPolygon = [];
+      polygon.forEach((ring) => {
+        var convertedCoords = convertCoordinatesToLatLong(ring, -94, -76, 31, 48, w, h);
+        newPolygon.push(convertedCoords);
+      })
+      newMultiPolygon.coordinates.push(newPolygon);
+    })
 
-
-    multipolygon.coordinates.forEach((actualPolygon) => {
-
-      //some of them are 2+d arrays
-
-      if (actualPolygon.length > 1) {
-        //console.log("weird array detected: ", actualPolygon);
-        actualPolygon.forEach((arr) => {
-          let convertedArr = [convertCoordinatesToLatLong(arr,-96, -78, 31, 48, w, h)];
-          //let convertedArr = [arr];
-          resultgeojson.features.push({
-            type: 'Feature',
-            properties: {
-              value: multipolygon.value,
-              idx: 0
-            },
-            geometry: {
-              type: 'Polygon',
-              coordinates: convertedArr
-            }
-          });
-
-        });
-      }
-      else {
-        let convertedArr = [convertCoordinatesToLatLong(actualPolygon[0], -96, -78, 31, 48, w, h)];
-        //let convertedArr = actualPolygon;
-        resultgeojson.features.push({
-          type: 'Feature',
-          properties: {
-            value: multipolygon.value,
-            idx: 0
-          },
-          geometry: {
-            type: 'Polygon',
-            coordinates: convertedArr
-          }
-        });
-      }
-
-    });
-
-
+    resultgeojson.features.push(newMultiPolygon);
   });
+
+
 
   console.log("geojson:");
   console.log(JSON.stringify(resultgeojson));
@@ -283,15 +268,15 @@ function App() {
 
       //convert the pixel vals to a 2d array so they can be processed by the blurring function
       var imageConvertedToValuesBut2d = [];
-      for(let count = 0; count < 629; count++){
+      for (let count = 0; count < 629; count++) {
         var tempRow = [];
-        for(let col = 0; col < 600;col++){
-          tempRow.push(imageConvertedToValues[count*600+col]);
+        for (let col = 0; col < 600; col++) {
+          tempRow.push(imageConvertedToValues[count * 600 + col]);
         }
         imageConvertedToValuesBut2d.push(tempRow);
         tempRow = [];
       }
-      
+
       var blurredImage = gaussianBlur(imageConvertedToValuesBut2d);
       console.log(blurredImage);
       convertPixelstoGeoJson(blurredImage);
@@ -327,7 +312,7 @@ function App() {
 
           <Switch>
             <Route path="/map">
-              { <MapComponent/> }
+              {<MapComponent />}
             </Route>
             <Route path="/users">
               <Users />

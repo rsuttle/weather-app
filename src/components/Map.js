@@ -1,109 +1,124 @@
-import React from "react";
-import ReactDOM from 'react-dom';
-import mapboxgl from "mapbox-gl";
+import React, { useEffect, useRef } from "react";
+import * as d3 from "d3";
+import { zoom } from "d3-zoom";
+import rewind from "@mapbox/geojson-rewind"
+var usMap = require('../images/testgeo.json');
+var radarJson = require('../images/radar.json');
 
 
-mapboxgl.accessToken = 'pk.eyJ1IjoiMnNwb29reSIsImEiOiJja2FkN3g4NnAyMjlkMnFxdmFxejJkanNzIn0.hXzWHwjSZaBdn8MdW-xoRg';
-
-
-export default class Map extends React.Component {
-    constructor(props) {
-        super(props);
-        this.state = {
-            lng: 5,
-            lat: 34,
-            zoom: 2
-        };
-
-
-
-
-    }
-
-
-    componentDidMount() {
-
-        const map = new mapboxgl.Map({
-            container: this.mapContainer,
-            style: 'mapbox://styles/2spooky/ckjp42ua808bc18qcob08avji',
-            center: [this.state.lng, this.state.lat],
-            zoom: this.state.zoom,
-            maxZoom: 7.85
-        
-
-
-        });
-
-
-
-        map.on('move', () => {
-            this.setState({
-                lng: map.getCenter().lng.toFixed(4),
-                lat: map.getCenter().lat.toFixed(4),
-                zoom: map.getZoom().toFixed(2)
-            });
-
-
-        });
-
-        map.on('load', () => {
-            console.log("loading");
-            
-            
-            map.addSource('radar-data', {
-                type: 'vector',
-                url: 'mapbox://2spooky.31ut72v9'
-            });
-    
-            map.addLayer({
-                "id": "radarpolygon",
-                "type": "fill",
-                "source": "radar-data",
-                "source-layer":"testingsize",
-                'paint': {
-                    'fill-opacity': 0.4,
-                    'fill-color': [
-                        "interpolate",
-                        ["linear"],
-                        ["get", "value"],
-                        0.8,
-                        "hsl(180, 100%, 82%)",
-                        8.8,
-                        "hsl(0, 99%, 49%)"
-                      ]
-                }
-                
-                
-                
-                
-            }, );
-    
-           
-
-
-            console.log("layer added");
-
-        });
-
-        
-    }
-
-
-
-
-    render() {
-        return (
-            <div>
-
-                <div style={{ height: "500px", width: "500px" }} ref={el => this.mapContainer = el} className='mapContainer' >
-                    <div className="sidebarStyle">
-                        <div>Longitude: {this.state.lng} | Latitude: {this.state.lat} | Zoom: {this.state.zoom}</div>
-                    </div>
-                </div>
-
-
-            </div>
-        )
-    }
-
+var thresholds = [0.8, 1.8, 2.8, 3.8, 4.8, 5.8, 6.8, 7.8, 8.8];
+var colorMap = {
+    0.8: "rgb(102,243,244)",
+    1.8: "rgb(125,196,250)",
+    2.8: "rgb(134,102,249)",
+    3.8: "rgb(102, 255, 115)",
+    4.8: "rgb(102, 223, 111)",
+    5.8: "rgb(102, 189, 107)",
+    6.8: "rgb(253, 255, 113)",
+    7.8: "rgb(239, 219, 107)",
+    8.8: "rgb(254, 190, 102)"
+};
+const getContourColor = (contour) => {
+    return colorMap[contour.value]
 }
+
+const Map = () => {
+    const s = useRef(null);
+
+    useEffect(() => {
+
+        const width = 960;
+        const height = 500;
+        var svg = d3.select(s.current)
+            .append("svg")
+            .attr("width", width)
+            .attr("height", height);
+
+        var projection = d3.geoMercator();
+        projection.fitSize([width, height], usMap);
+
+        var path = d3.geoPath().projection(projection);
+
+        //draw US map
+        var mapGroup =  svg.append("path")
+            .attr("fill", "none")
+            .attr("stroke", "black")
+            .attr("stroke-linejoin", "round")
+            .attr("viewBox", [0, 0, width, height])
+            .attr("d", path(usMap));
+
+
+        //Fix geoJson winding order
+        var blahRewind = rewind(radarJson, true);
+        
+
+        //draw contours
+        var g = svg.append("g")
+            .attr("fill", "none")
+            .attr("stroke", "black")
+            .attr("stroke-opacity", 0.5)
+            .attr("stroke-width", 0.2)
+        
+        
+        g.selectAll("path")
+            .data(blahRewind.features)
+            .join("path")
+            .attr("fill", d => getContourColor(d))
+            .attr("fill-opacity", 0.5)
+            .attr("d", d3.geoPath().projection(projection))
+
+
+        const zooming = zoom().scaleExtent([1,8]).on("zoom", e => {
+            var transform = e.transform;
+            
+            g.attr("transform", e.transform);
+            console.log("e",e);
+            console.log("etransform",e.transform);
+            g.style("stroke-width", 1 / Math.sqrt(transform.k));
+            // mapGroup.attr("transform", e.transform);
+            // mapGroup.style("stroke-width", 1 / Math.sqrt(transform.k));
+            
+        });
+
+        svg.call(zooming).call(zooming.transform,d3.zoomIdentity);
+
+
+
+
+
+        // d3.json(usMap, function (err, geojson) {
+
+        //      projection.fitSize([width, height], geojson);
+
+        //      svg.append("path").attr("d", path(geojson));
+        //      console.log("ran");
+
+        //  })
+
+    });
+
+    return (
+
+
+        <div ref={s}>
+
+        </div>
+
+
+
+    )
+}
+
+export default Map;
+
+
+
+
+
+
+
+
+
+
+
+
