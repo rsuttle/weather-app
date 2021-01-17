@@ -50,7 +50,8 @@ const Map = () => {
 
         //Fix geoJson winding order
         var blahRewind = rewind(radarJson, true);
-        
+        console.log("proper winding order: ");
+        console.log(JSON.stringify(blahRewind));
 
         //draw contours
         var g = svg.append("g")

@@ -10,14 +10,17 @@ import {
   useParams
 } from "react-router-dom";
 import MapComponent from "./components/Map"
+
 import testImage from "./images/testradar.PNG";
-import blurredTestImage from "./images/testradar.PNG"
+import blurredTestImage from "./images/croppedTestRadar1.png"
 import proj4 from "proj4"
 import { act } from 'react-dom/test-utils';
 var Color = require("color");
 //const proj4 = require("proj4");
 
 
+var globalWidth = 154;
+var globalHeight = 137;
 //Applies a Gaussian blur to 2d array of numbers, and returns the blurred 2d array.
 const gaussianBlur = (image) => {
   //st dev = 4, kernel size = 5
@@ -108,25 +111,27 @@ const convertCoordinatesToLatLong = (oldCoordinates, minLng, maxLng, minLat, max
 //Takes in 1D array of pixel values, feeds it to the contour generator, and then returns the generated
 //geoJson data.
 const convertPixelstoGeoJson = (pixelVals) => {
-  let w = 600;
-  let h = 629;
+  
 
 
 
   //creates geoJSON contour generator, results in geojson with bounds of inputted size
-  var polygons = contours().size([600, 629]).smooth(true).thresholds([0.8, 1.8, 2.8, 3.8, 4.8, 5.8, 6.8, 7.8, 8.8])
-
+  var polygons = contours().size([globalWidth, globalHeight]).smooth(true).thresholds([0.8, 1.8, 2.8, 3.8, 4.8, 5.8, 6.8, 7.8, 8.8])
+  
   //.thresholds([1,2,3,4,5,6,7,8,9])
 
   var pls = polygons(pixelVals);
 
+
+
   
-  // let tempResultgeojson = {
-  //   type: 'FeatureCollection',
-  //   features: []
-  // };
-  // tempResultgeojson.features = pls;
-  // console.log("Here it is: ", JSON.stringify(tempResultgeojson));
+  let tempResultgeojson = {
+    type: 'FeatureCollection',
+    features: []
+  };
+  tempResultgeojson.features = pls;
+  console.log("from d3-contour:");
+  console.log(JSON.stringify(tempResultgeojson));
 
 
   let resultgeojson = {
@@ -147,7 +152,7 @@ const convertPixelstoGeoJson = (pixelVals) => {
     multipolygon.coordinates.forEach((polygon) => {
       var newPolygon = [];
       polygon.forEach((ring) => {
-        var convertedCoords = convertCoordinatesToLatLong(ring, -94, -76, 31, 48, w, h);
+        var convertedCoords = convertCoordinatesToLatLong(ring, -88, -81, 37, 42, globalWidth, globalHeight);
         newPolygon.push(convertedCoords);
       })
       newMultiPolygon.coordinates.push(newPolygon);
@@ -189,7 +194,7 @@ const convertRGBAToPixels = (rgbaArray) => {
   var darkYellow = Color.rgb([254, 190, 102]);
 
   var colors = new Map();
-  console.log(colors);
+
 
 
   colors.set(whiteBackground.string(), 0);
@@ -241,45 +246,40 @@ function App() {
 
     var imgCanvas = canvasRef.current;
     var ctx = imgCanvas.getContext("2d");
-    imgCanvas.width = 600;
-    imgCanvas.height = 629;
+    imgCanvas.width = globalWidth;
+    imgCanvas.height = globalHeight;
 
 
     var radarImg = new Image();
 
     radarImg.addEventListener('load', function () {
 
-      //flipping across x-axis
-      //ctx.setTransform(1, 0, 0, -1, 0, imgCanvas.height);
+      
       ctx.drawImage(radarImg, 0, 0);
 
-      var myImageData = ctx.getImageData(0, 0, 600, 629);
-
-      //flipping it back for viewing
-      // ctx.setTransform(1, 0, 0, 1, 0, 0);
-      // ctx.drawImage(radarImg, 0, 0);
-
-
-
+      var myImageData = ctx.getImageData(0, 0, globalWidth, globalHeight);
 
       var imageConvertedToValues = convertRGBAToPixels(myImageData.data);
-      console.log(imageConvertedToValues)
-      //convertPixelstoGeoJson(imageConvertedToValues);
-
+      
+      
       //convert the pixel vals to a 2d array so they can be processed by the blurring function
       var imageConvertedToValuesBut2d = [];
-      for (let count = 0; count < 629; count++) {
+      for (let count = 0; count < globalHeight; count++) {
         var tempRow = [];
-        for (let col = 0; col < 600; col++) {
-          tempRow.push(imageConvertedToValues[count * 600 + col]);
+        for (let col = 0; col < globalWidth; col++) {
+          tempRow.push(imageConvertedToValues[count * globalWidth + col]);
         }
         imageConvertedToValuesBut2d.push(tempRow);
         tempRow = [];
       }
 
       var blurredImage = gaussianBlur(imageConvertedToValuesBut2d);
-      console.log(blurredImage);
+      
       convertPixelstoGeoJson(blurredImage);
+
+
+
+
 
 
     }, false);
@@ -324,6 +324,7 @@ function App() {
         </div>
       </Router>
       <canvas ref={canvasRef}></canvas>
+      
     </>
   );
 }
