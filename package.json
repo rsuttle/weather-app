@@ -18,6 +18,8 @@
     "geotiff": "^1.0.0-beta.16",
     "mapbox-gl": "^2.0.1",
     "node-gzip": "^1.1.2",
+    "pixi-viewport": "^4.18.1",
+    "pixi.js": "^5.3.7",
     "proj4": "^2.6.3",
     "react": "^17.0.1",
     "react-dom": "^17.0.1",

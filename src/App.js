@@ -8,7 +8,7 @@ import {
   useRouteMatch,
   useParams
 } from "react-router-dom";
-import CanvasController from "./components/CanvasController"
+import Map from "./components/Map"
 
 
 // //Takes in a radar image in RGBA format (from canvas) and converts it to a 1D array
@@ -99,7 +99,7 @@ function App() {
 
           <Switch>
             <Route path="/map">
-              <CanvasController/>
+              <Map/>
             </Route>
             <Route path="/users">
               <Users />

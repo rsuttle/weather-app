@@ -2,8 +2,10 @@ const express = require('express');
 const { spawn } = require("child_process");
 const fs = require('fs');
 const d3contour = require("d3-contour");
+const d3 = require("d3-geo")
 const rewindGeojson = require("@mapbox/geojson-rewind");
 const cors = require('cors');
+var simplify = require("simplify-geojson");
 
 const app = express();
 const port = 8000;
@@ -173,18 +175,18 @@ const interpolateX = (frame1, frame2, X) => {
     result.push(empty2DArray);
   }
 
-// console.log(result);
-// result[2][0].push(5);
-// console.log(result[2]);
+  // console.log(result);
+  // result[2][0].push(5);
+  // console.log(result[2]);
   var between = 1 / (X + 1);
   for (let i = 0; i < frame1.length; i++) {
     for (let j = 0; j < frame2.length; j++) {
-      
+
       for (let k = 1; k <= X; k++) {
-        if(result[k][i]===undefined) result[k].push([]);
+        if (result[k][i] === undefined) result[k].push([]);
         result[k][i].push(frame1[i][j] + k * between * (frame2[i][j] - frame1[i][j]));
       }
-      
+
     }
 
   }
@@ -195,6 +197,79 @@ const interpolateX = (frame1, frame2, X) => {
 
 
 
+
+//Takes a geoJson object and truncates all coordinates to 4 decimal places, then returns the geoJson object
+const truncateGeojsonCoordinates = (geojson) => {
+
+
+  var truncated = {
+    type: 'FeatureCollection',
+    features: []
+  };
+
+  geojson.features.forEach((multipolygon) => {
+
+    var newMultiPolygon = {
+      type: 'MultiPolygon',
+      value: multipolygon.value,
+      coordinates: []
+
+
+    }
+    multipolygon.coordinates.forEach((polygon) => {
+      var newPolygon = [];
+      polygon.forEach((ring) => {
+        var truncatedCoords = [];
+        ring.forEach((coord) => {
+          truncatedCoords.push([Math.round(coord[0] * 10000) / 10000, Math.round(coord[1] * 10000) / 10000])
+        })
+        newPolygon.push(truncatedCoords);
+      })
+      newMultiPolygon.coordinates.push(newPolygon);
+    })
+
+    truncated.features.push(newMultiPolygon);
+  });
+
+  return truncated;
+
+}
+
+const projectGeojsonToPlanar = (geojson) => {
+
+  var projection = d3.geoAlbersUsa().scale(1300).translate([487.5, 305]);
+  
+  var projected = {
+    type: 'FeatureCollection',
+    features: []
+  };
+
+  geojson.features.forEach((multipolygon) => {
+
+    var newMultiPolygon = {
+      type: 'MultiPolygon',
+      value: multipolygon.value,
+      coordinates: []
+
+
+    }
+    multipolygon.coordinates.forEach((polygon) => {
+      var newPolygon = [];
+      polygon.forEach((ring) => {
+        var projectedCoords = [];
+        ring.forEach((coord) => {
+          projectedCoords.push(projection(coord));
+        })
+        newPolygon.push(projectedCoords);
+      })
+      newMultiPolygon.coordinates.push(newPolygon);
+    })
+
+    projected.features.push(newMultiPolygon);
+  });
+
+  return projected;
+}
 // //Gets and returns radar data array from file, flattens it from 2d to 1d
 // async function getRadarData() {
 
@@ -243,12 +318,28 @@ for (var row = radarData2.length - 1; row >= 0; row--) {
 var radarDataList = interpolateX(flippedRadarData1, flippedRadarData2, 4);
 
 var finalRadarDataList = [];
-for(let i = 0; i < radarDataList.length;i++){
+for (let i = 0; i < radarDataList.length; i++) {
   var blurredRadarData = gaussianBlur(radarDataList[i]);
   var convertedRadarData = convertPixelstoGeoJson(blurredRadarData);
-  var fixedWindingOrder = rewindGeojson(convertedRadarData,true);
-  finalRadarDataList.push(fixedWindingOrder);
+  var fixedWindingOrder = rewindGeojson(convertedRadarData, true);
+  
+  var simplified = simplify(fixedWindingOrder, .005);
+  
+  var projected = projectGeojsonToPlanar(simplified);
+  
+  var truncated = truncateGeojsonCoordinates(projected);
+  
+  
+
+  finalRadarDataList.push(truncated);
 }
+
+
+
+
+
+
+
 
 
 
@@ -260,13 +351,14 @@ for(let i = 0; i < radarDataList.length;i++){
 var output = finalRadarDataList;
 
 
+
 //maybe use streams to speed this up?
-fs.writeFileSync("./interpolatedJsonTest", JSON.stringify(output), function(err) {
-  if(err) {
-      return console.log(err);
+fs.writeFileSync("./interpolatedJsonTest", JSON.stringify(output), function (err) {
+  if (err) {
+    return console.log(err);
   }
   console.log("The file was saved!");
-}); 
+});
 
 
 
