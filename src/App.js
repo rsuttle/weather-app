@@ -1,13 +1,4 @@
 import './App.css';
-import { useEffect, useRef } from "react"
-import {
-  BrowserRouter as Router,
-  Switch,
-  Route,
-  Link,
-  useRouteMatch,
-  useParams
-} from "react-router-dom";
 import Map from "./components/Map"
 
 

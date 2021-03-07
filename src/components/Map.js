@@ -5,7 +5,16 @@ import { Viewport } from "pixi-viewport";
 import axios from "axios";
 import styled from "styled-components";
 import { createTextMesh, updateText } from "./textRendering";
+import { Grid } from "@material-ui/core"
+import noUiSlider from 'nouislider';
+import 'nouislider/distribute/nouislider.css';
+
 import bitmapFont from '../deleteLater/sdf.fnt';
+import rightArrowButtonImage from '../deleteLater/right-arrow.svg'
+import leftArrowButtonImage from '../deleteLater/left-arrow.svg'
+import playButtonImage from '../deleteLater/playButton.svg'
+import pauseButtonImage from '../deleteLater/pauseButton.svg'
+
 
 export var citiesList = [];
 export var projectedCitiesLocations = [];
@@ -16,18 +25,74 @@ const usOutline = require('../deleteLater/usOutline.json');
 
 
 
-const Button = styled.button`
+//Total width of the three buttons should be 30% of screen
+const ControlButton = styled.button`
  
- 
-position: absolute;
-margin-top: ${props => props.userWindowHeight * 4 / 5}px;
-margin-left: ${props => props.userWindowWidth / 2 - 25}px;
-width: 50px;
-height: 20px;
+ /* Small devices (landscape phones, 576px and up)*/
+@media (min-width: 375px) { 
+    width: ${props => (props.userWindowWidth * 1 / 2) / 3}px;
+    height: ${props => (props.userWindowWidth * 1 / 2) / 3}px;
+
+
+}
+
+/* Medium devices (tablets, 768px and up)*/
+@media (min-width: 768px) {
+    width: ${props => (props.userWindowWidth * 1 / 2) / 3}px;
+    height: ${props => (props.userWindowWidth * 1 / 2) / 3}px;
+}
+
+/* Large devices (desktops, 992px and up)*/
+@media (min-width: 992px) {
+    width: ${props => (props.userWindowWidth * 1 / 6) / 3}px;
+    height: ${props => (props.userWindowWidth * 1 / 6) / 3}px;
+}
+
+/* Extra large devices (large desktops, 1200px and up)*/
+@media (min-width: 1200px) {
+    width: ${props => (props.userWindowWidth * 1 / 6) / 3}px;
+    height: ${props => (props.userWindowWidth * 1 / 6) / 3}px;
+}
+
+
 
 
  
   
+`
+//Control buttons are positioned 80% from top of screen, and in the middle
+const ControlButtonsContainer = styled.div`
+position: absolute;
+
+
+/* Small devices (landscape phones, 576px and up) */
+@media (min-width: 375px) {
+    
+    top: ${props => props.userWindowHeight * 4 / 5}px;
+    left: ${props => props.userWindowWidth / 2 - (1 / 4 * props.userWindowWidth)}px;
+ }
+
+/* Medium devices (tablets, 768px and up) */
+@media (min-width: 768px) {
+    top: ${props => props.userWindowHeight * 4 / 5}px;
+    left: ${props => props.userWindowWidth / 2 - (1 / 4 * props.userWindowWidth)}px;
+}
+
+/* Large devices (desktops, 992px and up) */
+@media (min-width: 992px) {
+    
+    top: ${props => props.userWindowHeight * 4 / 5}px;
+    left: ${props => props.userWindowWidth / 2 - (1 / 12 * props.userWindowWidth)}px;
+}
+
+/*Extra large devices (large desktops, 1200px and up)*/
+@media (min-width: 1200px) {
+    top: ${props => props.userWindowHeight * 4 / 5}px;
+    left: ${props => props.userWindowWidth / 2 - (1 / 12 * props.userWindowWidth)}px;
+}
+
+
+
 `
 
 const citiesAndLocations = {
@@ -42,18 +107,22 @@ const citiesAndLocations = {
     "Munising": [-86.6479, 46.4111],
     "Madison": [-89.4012, 43.0731],
     "Milwaukee": [-87.9065, 43.0389],
-    "Springfield": [-89.6501,39.7817],
+    "Springfield": [-89.6501, 39.7817],
     "Cleveland": [-81.6944, 41.4993],
-    "Pittsburgh": [-79.9959,40.4406],
-    "Louisville": [-85.7585,38.2527],
-    "Green Bay": [-88.0133,44.5133],
-    "Minneapolis": [-93.2650,44.9778],
-    "Duluth": [-92.1005,46.7867],
-    "Traverse City": [-85.6206,44.7631]
+    "Pittsburgh": [-79.9959, 40.4406],
+    "Louisville": [-85.7585, 38.2527],
+    "Green Bay": [-88.0133, 44.5133],
+    "Minneapolis": [-93.2650, 44.9778],
+    "Duluth": [-92.1005, 46.7867],
+    "Traverse City": [-85.6206, 44.7631]
 }
 
 
-
+var projection = d3.geoAlbersUsa().scale(1300).translate([487.5, 305]);
+for (const city in citiesAndLocations) {
+    citiesList.push(city);
+    projectedCitiesLocations.push(projection(citiesAndLocations[city]));
+}
 
 
 const Map = () => {
@@ -66,6 +135,7 @@ const Map = () => {
 
     const [radarFrames, setRadarFrames] = useState(null);
     const [isAnimating, setIsAnimating] = useState(false);
+    
 
     const renderCanvas = useRef(null);
     const pixiRenderer = useRef(null);
@@ -78,24 +148,34 @@ const Map = () => {
     const path = useRef(null);
     const projPath = useRef(null);
     const loadedFont = useRef(false);
+    const sliderRef = useRef(null);
 
 
-    var projection = d3.geoAlbersUsa().scale(1300).translate([487.5, 305]);
-    for (const city in citiesAndLocations) {
-        citiesList.push(city);
-        projectedCitiesLocations.push(projection(citiesAndLocations[city]));
-    }
 
-    console.log(citiesList,projectedCitiesLocations)
+
+
 
     useEffect(() => {
+
+        noUiSlider.create(sliderRef.current, {
+            start: [0],
+            animate: false,
+            connect: true,
+            step: 1,
+            range: {
+                'min': 0,
+                'max': 5
+            }
+        });
+
+        sliderRef.current.noUiSlider.on("slide", onSliderChange);
 
         //Retrieve initial data
         axios.get('http://192.168.0.5:8000')
             .then(function (response) {
 
                 setRadarFrames(response.data);
-                console.log(response.data);
+                
 
 
             })
@@ -158,7 +238,7 @@ const Map = () => {
             updateText(font, textMesh.current.geometry);
         });
 
-        console.log(textMesh.current);
+        
 
     }, []);
 
@@ -216,8 +296,8 @@ const Map = () => {
 
 
                     }
-
-                    currentFrame.current = (currentFrame.current + 1) % 6;
+                    
+                    incrementCurrentFrame();
                 }
                 else {
                     var frameToDraw = radarFrames[currentFrame.current];
@@ -242,20 +322,19 @@ const Map = () => {
                     }
                 }
 
-                if (currentFrame.current === 5) console.log(textMesh.current);
+
 
 
                 if (loadedFont.current !== false) {
                     //Updating text
-                    // updateText(loadedFont.current, textMesh.current.geometry);
+                    
                     textMesh.current.material.uniforms.drawUV = false;
                     textMesh.current.material.uniforms.drawDistance = false;
                     textMesh.current.material.uniforms.smoothing = 0.05 / pixiViewport.current.transform.scale.x;
                     textMesh.current.material.uniforms.buffer = .27;
                     textMesh.current.material.uniforms.outlineSize = .25;
                     textMesh.current.material.uniforms.uScale = 0.4 / pixiViewport.current.transform.scale.x;
-                    //textMesh.current.scale.set(0.5/pixiViewport.current.transform.scale.x, 0.5/pixiViewport.current.transform.scale.x);
-                    var projectedChicagoPos = projection([-87.6298, 41.8781]);
+                    
 
                 }
 
@@ -278,22 +357,57 @@ const Map = () => {
         textMesh.current.material.uniforms.outlineSize = .25;
         textMesh.current.material.uniforms.uScale = 0.4 / pixiViewport.current.transform.scale.x;
         pixiViewport.current.addChild(textMesh.current);
+
         //setup ticker/animation loop
         pixiTicker.current.destroy();
+
         pixiTicker.current = new PIXI.Ticker();
         pixiTicker.current.add(loop, PIXI.UPDATE_PRIORITY.LOW);
+
         pixiTicker.current.start();
 
     }, [radarFrames, isAnimating]);
 
 
-    const onStartStopButtonClick = () => {
-        console.log("Play");
-        setIsAnimating(prev => !prev);
+    const incrementCurrentFrame = () => {
+        currentFrame.current = (currentFrame.current + 1) % 6;
+        sliderRef.current.noUiSlider.set(currentFrame.current)
+        
+    }
+
+    const decrementCurrentFrame = () => {
+        currentFrame.current = (currentFrame.current - 1 + 6) % 6;
+        sliderRef.current.noUiSlider.set(currentFrame.current)
     }
 
 
+    const onStartStopButtonClick = () => {
+        setIsAnimating(prev => !prev);
+    }
 
+    const onRightArrowButtonClick = () => {
+        incrementCurrentFrame();
+    }
+
+    const onLeftArrowButtonClick = () => {
+
+        decrementCurrentFrame();
+    }
+
+    const onSliderChange = (value) => {
+
+        currentFrame.current = parseInt(value[0],10);
+
+
+
+    }
+
+   
+
+
+    
+
+    
     return (
 
         <div style={{ position: 'relative' }}>
@@ -303,7 +417,25 @@ const Map = () => {
             </canvas>
 
 
-            <Button onClick={onStartStopButtonClick} userWindowHeight={userWindowHeight} userWindowWidth={userWindowWidth}>Play!</Button>
+
+            <ControlButtonsContainer userWindowHeight={userWindowHeight} userWindowWidth={userWindowWidth}>
+                <Grid direction="column" container>
+                    <Grid item>
+                      
+                        <div style={{margin: 3}} ref={sliderRef}>
+
+                        </div>
+
+                    </Grid>
+                    <Grid container>
+                        <ControlButton userWindowHeight={userWindowHeight} userWindowWidth={userWindowWidth} onClick={onLeftArrowButtonClick} ><img alt="left arrow" src={leftArrowButtonImage}></img></ControlButton>
+                        <ControlButton userWindowHeight={userWindowHeight} userWindowWidth={userWindowWidth} onClick={onStartStopButtonClick} ><img alt="start/pause button" src={isAnimating ? pauseButtonImage : playButtonImage}></img></ControlButton>
+                        <ControlButton userWindowHeight={userWindowHeight} userWindowWidth={userWindowWidth} onClick={onRightArrowButtonClick} ><img alt="right arrow" src={rightArrowButtonImage}></img></ControlButton>
+                    </Grid>
+                </Grid>
+
+            </ControlButtonsContainer>
+
 
 
 

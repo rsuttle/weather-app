@@ -1,8 +1,8 @@
 import * as PIXI from 'pixi.js';
-import { citiesList, citiesLocations, projectedCitiesLocations } from './Map';
+import { citiesList, projectedCitiesLocations } from './Map';
 import texturePNG from '../deleteLater/sdf.png';
 
-const loadFont = require('load-bmfont');
+
 const createLayout = require('layout-bmfont-text');
 const createIndices = require('quad-indices');
 
@@ -163,16 +163,6 @@ function updateText(font, geometry) {
   }
 
 
-  console.log(offsets)
-  // for(let i = 0; i < 28*citiesList.length; i++){
-  //     offsets.push([638.2196155652965, 226.11226483166013]);
-  //     offsets.push()
-  //    //offsets.push([0,0]);
-  // }
-
-  const time = performance.now() / 1000;
-
-
 
   const attributes = buildMergedText(font, citiesList, offsets, scales);
 
@@ -276,9 +266,9 @@ function mergeTypedArrays(typedArrays) {
     length += typedArrays[i].length;
   }
 
-  console.log("before", typedArrays)
+  
   const array = new typedArrays[0].constructor(length);
-  console.log("after", array)
+  
   let currentLength = 0;
 
   for (let i = 0; i < typedArrays.length; i++) {
