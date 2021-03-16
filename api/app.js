@@ -6,14 +6,52 @@ const d3 = require("d3-geo")
 const rewindGeojson = require("@mapbox/geojson-rewind");
 const cors = require('cors');
 var simplify = require("simplify-geojson");
+const { default: axios } = require('axios');
+const downloadGribData = require('./downloadGribData');
+const util = require('util');
+const readFileContent = util.promisify(fs.readFile) 
 
 const app = express();
 const port = 8000;
 
 app.use(cors());
 
-var globalHeight = 401;
-var globalWidth = 401;
+var globalHeight = 49;
+var globalWidth = 61;
+
+downloadGribData()
+.then(() => {
+  
+  //Executes python script
+  var python = spawn('/home/ryan/miniconda3/envs/weatherApp/bin/python3.8', ['./gribProcessing/gribscript.py'], {silent:true});
+
+  python.stderr.on('data', (d) => {
+    console.log("python stderr: " + d);
+  })
+
+  python.stdout.on('data', (d) => {
+    console.log("python stdout: " + d);
+  })
+
+  python.stdin.on('data', (d) => {
+    console.log("python stdin: " + d);
+  })
+
+  python.stdin.on('error', (d) => {
+    console.log("python error: " + d);
+  })
+
+  python.on('exit', (code) => {
+    console.log(`child process close all stdio with code ${code}`);
+    //grab data from stdio
+    processGribData();
+  });
+
+
+  
+  
+})
+
 
 //Applies a Gaussian blur to 2d array of numbers, and returns a 1d blurred array.
 const gaussianBlur = (image) => {
@@ -102,17 +140,27 @@ const convertCoordinatesToLatLong = (oldCoordinates, minLng, maxLng, minLat, max
 
 }
 
+//Accepts 2D array of Kelvin temperature data, returns same data converted to Fahrenheit
+const convertKelvinToFahrenheit = (dataArray) => {
+  for(let i = 0; i < dataArray.length;i++){
+    for(let j = 0; j < dataArray[0].length;j++){
+        dataArray[i][j]=dataArray[i][j]*(9/5)-459.67;
+        
+    }
+  }
+  return dataArray;
+}
 
 
 //Takes in 1D array of pixel values, feeds it to the contour generator, and then returns the generated
 //geoJson data.
 const convertPixelstoGeoJson = (pixelVals) => {
 
-
+  
 
 
   //creates geoJSON contour generator, results in geojson with bounds of inputted size
-  var polygons = d3contour.contours().size([globalWidth, globalHeight]).smooth(true).thresholds([10, 15, 20, 25, 30, 35, 40]);
+  var polygons = d3contour.contours().size([globalWidth, globalHeight]).smooth(true).thresholds([7,10,13,16,19,22,25,28,31,34,40,43,46,47,49,52,55,58,61,64,67]);
 
   //.thresholds([1,2,3,4,5,6,7,8,9])
 
@@ -142,7 +190,7 @@ const convertPixelstoGeoJson = (pixelVals) => {
     multipolygon.coordinates.forEach((polygon) => {
       var newPolygon = [];
       polygon.forEach((ring) => {
-        var convertedCoords = convertCoordinatesToLatLong(ring, -88, -81, 37, 42, globalWidth, globalHeight);
+        var convertedCoords = convertCoordinatesToLatLong(ring, -94, -79, 37, 49, globalWidth, globalHeight);
         newPolygon.push(convertedCoords);
       })
       newMultiPolygon.coordinates.push(newPolygon);
@@ -166,21 +214,19 @@ const convertPixelstoGeoJson = (pixelVals) => {
 const interpolateX = (frame1, frame2, X) => {
   var result = [];
   result.push(frame1);
-  console.log(frame2.length);
+  
 
   //pushing empty 2d arrays into result array to hold interpolated frames
   for (let i = 0; i < X; i++) {
     var empty2DArray = [];
-    //empty2DArray.push([]);
+    
     result.push(empty2DArray);
   }
 
-  // console.log(result);
-  // result[2][0].push(5);
-  // console.log(result[2]);
+
   var between = 1 / (X + 1);
   for (let i = 0; i < frame1.length; i++) {
-    for (let j = 0; j < frame2.length; j++) {
+    for (let j = 0; j < frame2[0].length; j++) {
 
       for (let k = 1; k <= X; k++) {
         if (result[k][i] === undefined) result[k].push([]);
@@ -190,8 +236,8 @@ const interpolateX = (frame1, frame2, X) => {
     }
 
   }
-  result.push(frame2);
-  console.log(result[5].length);
+  //result.push(frame2);
+  
   return result;
 }
 
@@ -270,101 +316,73 @@ const projectGeojsonToPlanar = (geojson) => {
 
   return projected;
 }
-// //Gets and returns radar data array from file, flattens it from 2d to 1d
-// async function getRadarData() {
 
-//   try{
-//     var data = await fs.readFile('./compositeReflectivity.json', 'utf8');
-//     var radarData = JSON.parse(data).flat();
-//     return radarData;
-//   }
-//   catch(err){
-//     console.log(err);
-//   }
+const flipDataVertically = (dataArray) => {
+  var flippedData = [];
+  for (var row = dataArray.length - 1; row >= 0; row--) {
+    flippedData.push(dataArray[row]);
+  }
 
-
-
-
-
-// }
-//var testing = getRadarData().then(console.log(testing)).catch((err) => console.log(err));
-
-//Executes python script, which gets data and stores it in compositeReflectivity.json
-// const python = spawn('python', ['./script.py']);
-// python.on('exit', (code) => {
-//   console.log(`child process close all stdio with code ${code}`);
-//   var testing = fs.readFileSync("./compositeReflectivity.json", "utf8");
-//   var radarData = JSON.parse(testing).flat();
-//   console.log(radarData);
-// });
-
-var refData1 = fs.readFileSync("./compositeReflectivity.json", "utf8");
-var refData2 = fs.readFileSync("./compositeReflectivity2.json", "utf8");
-
-var radarData1 = JSON.parse(refData1);
-var radarData2 = JSON.parse(refData2);
-
-var flippedRadarData1 = [];
-for (var row = radarData1.length - 1; row >= 0; row--) {
-  flippedRadarData1.push(radarData1[row]);
-}
-
-var flippedRadarData2 = [];
-for (var row = radarData2.length - 1; row >= 0; row--) {
-  flippedRadarData2.push(radarData2[row]);
+  return flippedData;
 }
 
 
-var radarDataList = interpolateX(flippedRadarData1, flippedRadarData2, 4);
+var finalDataList = [];
+const processGribData = () => {
+  //Read in file of 2d data arrays, then send them through processing pipeline
 
-var finalRadarDataList = [];
-for (let i = 0; i < radarDataList.length; i++) {
-  var blurredRadarData = gaussianBlur(radarDataList[i]);
-  var convertedRadarData = convertPixelstoGeoJson(blurredRadarData);
-  var fixedWindingOrder = rewindGeojson(convertedRadarData, true);
-  
-  var simplified = simplify(fixedWindingOrder, .005);
-  
-  var projected = projectGeojsonToPlanar(simplified);
-  
-  var truncated = truncateGeojsonCoordinates(projected);
-  
-  
+  //promisified fs.readFile
+  readFileContent("../temperatureData.json","utf8")
+  .then((temperatureData) => {
+      temperatureData = JSON.parse(temperatureData);
+      console.log("size", temperatureData.length)
 
-  finalRadarDataList.push(truncated);
+      for(let i = 0; i < temperatureData.length; i++){
+        temperatureData[i] = convertKelvinToFahrenheit(temperatureData[i]);
+        temperatureData[i] = flipDataVertically(temperatureData[i]);
+      }
+
+      var dataList = [];
+      for(let i = 0; i < temperatureData.length-1; i++){
+        var interpolatedData = interpolateX(temperatureData[i],temperatureData[i+1],15)
+        for(let j = 0; j < interpolatedData.length; j++){
+          dataList.push(interpolatedData[j]);
+        }
+        
+      }
+      dataList.push(temperatureData[temperatureData.length-1]);
+
+      
+      for(let i = 0; i < dataList.length; i++){
+        //apparently bRD is actually a 2d array, with the 1st row containing everything
+        //hmmmm
+        var blurredTemperatureData = gaussianBlur(dataList[i]);
+        var convertedTemperatureData = convertPixelstoGeoJson(blurredTemperatureData);
+        var fixedWindingOrder = rewindGeojson(convertedTemperatureData, true);
+        var simplified = simplify(fixedWindingOrder, .005);
+        var projected = projectGeojsonToPlanar(simplified);
+        var truncated = truncateGeojsonCoordinates(projected);
+        
+        finalDataList.push(truncated);
+      }
+    })
+    .catch((err) => {
+      console.log(err);
+    })
+  
+  
 }
 
 
 
 
+var output = finalDataList;
 
-
-
-
-
-
-
-
-
-
-
-var output = finalRadarDataList;
 
 
 
 //maybe use streams to speed this up?
-fs.writeFileSync("./interpolatedJsonTest", JSON.stringify(output), function (err) {
-  if (err) {
-    return console.log(err);
-  }
-  console.log("The file was saved!");
-});
-
-
-
-
-
-
+//fs.writeFileSync("./interpolatedJsonTest.geojson", JSON.stringify(output[2]))
 
 app.get('/', (req, res) => {
   res.send(output);
