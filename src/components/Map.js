@@ -1,5 +1,8 @@
 import React, { useEffect, useRef, useState } from "react";
 import * as d3 from "d3";
+import * as d3color from  "d3-color"
+
+
 import * as PIXI from "pixi.js";
 import { Viewport } from "pixi-viewport";
 import axios from "axios";
@@ -129,6 +132,7 @@ const Map = () => {
 
     const width = 975;
     const height = 610;
+    
 
     const userWindowWidth = window.innerWidth;
     const userWindowHeight = window.innerHeight;
@@ -149,6 +153,7 @@ const Map = () => {
     const projPath = useRef(null);
     const loadedFont = useRef(false);
     const sliderRef = useRef(null);
+    const numberOfFrames = useRef(0);
 
 
 
@@ -157,22 +162,29 @@ const Map = () => {
 
     useEffect(() => {
 
-        noUiSlider.create(sliderRef.current, {
-            start: [0],
-            animate: false,
-            connect: true,
-            step: 1,
-            range: {
-                'min': 0,
-                'max': 5
-            }
-        });
+        
 
-        sliderRef.current.noUiSlider.on("slide", onSliderChange);
+        
 
         //Retrieve initial data
         axios.get('http://192.168.0.5:8000')
             .then(function (response) {
+
+                numberOfFrames.current = response.data.length;
+                
+                
+                noUiSlider.create(sliderRef.current, {
+                    start: [0],
+                    animate: false,
+                    connect: true,
+                    step: 1,
+                    range: {
+                        'min': 0,
+                        'max': numberOfFrames.current-1
+                    }
+                });
+
+                sliderRef.current.noUiSlider.on("slide", onSliderChange);
 
                 setRadarFrames(response.data);
                 
@@ -192,7 +204,7 @@ const Map = () => {
 
 
         //setup renderer with canvas
-        pixiRenderer.current = new PIXI.Renderer({ width: userWindowWidth, height: userWindowHeight, backgroundColor: 0x0a0a0a, antialias: true, view: renderCanvas.current, resolution: 2, autoDensity: true });
+        pixiRenderer.current = new PIXI.Renderer({ width: userWindowWidth, height: userWindowHeight, backgroundColor: 0x0a0a0a, antialias: true, view: renderCanvas.current});
         //0x343332
         //create viewport and add to stage
         const viewport = new Viewport({
@@ -243,7 +255,17 @@ const Map = () => {
     }, []);
 
 
+    function convertRGBStringToHex(rgb){
+        var a = rgb.split("(")[1].split(")")[0];
+        a = a.split(",");
+        var b = a.map(function(x){             //For each array element
+            x = parseInt(x).toString(16);      //Convert to a base16 string
+            return (x.length==1) ? "0"+x : x;  //Add zero if we get only one character
+        });
 
+        b = "0x"+b.join("")
+        return b;
+    }
 
     useEffect(() => {
 
@@ -259,16 +281,21 @@ const Map = () => {
             8.8: 0xfebe66
         };
 
-        function loop() {
+     
+      //var color = d3.scaleSequential().domain([7,67]).interpolator(d3.interpolateTurbo)
 
+      var color = d3.scaleLinear().domain([10,30,50,60]).range(['#432d69','#5ef4ff','#12a602','#fff069'])
+      
+
+        
+       
+        function loop() {
+            
 
             graphics.current.clear();
 
 
-            //draw states and US outline
-            graphics.current.lineStyle(2.0 / pixiViewport.current.transform.scale.x, 0x696969, 1);
-            path.current(usMap);
-            path.current(usOutline);
+            
 
 
             graphics.current.lineStyle(0 / pixiViewport.current.transform.scale.x, 0x191a1a, 1);
@@ -277,52 +304,134 @@ const Map = () => {
 
                 if (isAnimating) {
                     var frameToDraw = radarFrames[currentFrame.current];
+                    
+                    
+                    frameToDraw.features.forEach((multipolygon) => {
+
+                        
+                        multipolygon.coordinates.forEach((polygon) => {
+                          var isFirst = true;
+                          polygon.forEach((ring) => {
+                                if(isFirst){
+                                    // //draw normally
+                                    // graphics.current.beginHole();
+                                    // graphics.current.moveTo(ring[0][0],ring[0][1]);
+                                    // ring.forEach((coord,index) => {
+                                    //     if(index!==0) graphics.current.lineTo(coord[0],coord[1]);
+                                        
+
+                                    // });
+                                    // graphics.current.endHole();
+
+                                    graphics.current.beginFill(convertRGBStringToHex(color(multipolygon.value)),1.0);
+                                    graphics.current.moveTo(ring[0][0],ring[0][1]);
+                                    ring.forEach((coord) => {
+                                        graphics.current.lineTo(coord[0],coord[1]);
+                                        
+
+                                    });
+                                    graphics.current.endFill();
+                                    isFirst=false;
+                                    
+                                }
+                                else{
+                                    //draw hole
+                                    graphics.current.beginHole();
+                                    graphics.current.moveTo(ring[0][0],ring[0][1]);
+                                    ring.forEach((coord) => {
+                                        graphics.current.lineTo(coord[0],coord[1]);
+                                        
+
+                                    });
+                                    graphics.current.endHole();
+
+                                }
+                          })
+                          
+                        })
+                    
+                        
+                      });
+
+                    // //has to be a geometry collection to work
+                    // var why = {
+                    //     type: 'GeometryCollection',
+                    //     geometries: []
+                    // };
+
+                    // why.geometries = frameToDraw.features;
+
+                    // //draw radar frame
+                    // for (let i = 0; i < why.geometries.length; i++) {
+                    //     graphics.current.beginFill(color(why.geometries[i].value));
+                    //     console.log(color(why.geometries[i].value))
+
+                    //     path.current(why.geometries[i]);
+                        
 
 
-                    //has to be a geometry collection to work
-                    var why = {
-                        type: 'GeometryCollection',
-                        geometries: []
-                    };
-
-                    why.geometries = frameToDraw.features;
-
-                    //draw radar frame
-                    for (let i = 0; i < why.geometries.length; i++) {
-                        graphics.current.beginFill(colorMap[why.geometries[i].value], 0.5);
-
-                        path.current(why.geometries[i]);
-                        graphics.current.endFill();
-
-
-                    }
+                    // }
                     
                     incrementCurrentFrame();
+                    
                 }
                 else {
                     var frameToDraw = radarFrames[currentFrame.current];
+                    
+                    
+                    
+                    frameToDraw.features.forEach((multipolygon) => {
 
+                        
+                        multipolygon.coordinates.forEach((polygon) => {
+                          var isFirst = true;
+                          polygon.forEach((ring) => {
+                                if(isFirst){
+                                    // //draw normally
+                                    // graphics.current.beginHole();
+                                    // graphics.current.moveTo(ring[0][0],ring[0][1]);
+                                    // ring.forEach((coord,index) => {
+                                    //     if(index!==0) graphics.current.lineTo(coord[0],coord[1]);
+                                        
 
-                    //has to be a geometry collection to work
-                    var why = {
-                        type: 'GeometryCollection',
-                        geometries: []
-                    };
+                                    // });
+                                    // graphics.current.endHole();
 
-                    why.geometries = frameToDraw.features;
+                                    graphics.current.beginFill(convertRGBStringToHex(color(multipolygon.value)),1.0);
+                                    graphics.current.moveTo(ring[0][0],ring[0][1]);
+                                    ring.forEach((coord) => {
+                                        graphics.current.lineTo(coord[0],coord[1]);
+                                        
 
-                    //draw radar frame
-                    for (let i = 0; i < why.geometries.length; i++) {
-                        graphics.current.beginFill(colorMap[why.geometries[i].value], 0.5);
+                                    });
+                                    graphics.current.endFill();
+                                    isFirst=false;
+                                }
+                                else{
+                                    //draw hole
+                                    graphics.current.beginHole();
+                                    graphics.current.moveTo(ring[0][0],ring[0][1]);
+                                    ring.forEach((coord) => {
+                                        graphics.current.lineTo(coord[0],coord[1]);
+                                        
 
-                        path.current(why.geometries[i]);
-                        graphics.current.endFill();
+                                    });
+                                    graphics.current.endHole();
 
+                                }
+                          })
+                          
+                        })
+                    
+                        
+                      });
 
-                    }
                 }
 
-
+                //draw states and US outline
+            graphics.current.lineStyle(2.0 / pixiViewport.current.transform.scale.x, 0x111222, 1);
+            path.current(usMap);
+            path.current(usOutline);
 
 
                 if (loadedFont.current !== false) {
@@ -359,24 +468,27 @@ const Map = () => {
         pixiViewport.current.addChild(textMesh.current);
 
         //setup ticker/animation loop
+        pixiTicker.current.stop();
+        
         pixiTicker.current.destroy();
 
         pixiTicker.current = new PIXI.Ticker();
-        pixiTicker.current.add(loop, PIXI.UPDATE_PRIORITY.LOW);
-
+        pixiTicker.current.add(loop, PIXI.UPDATE_PRIORITY.HIGH);
+        
+       
         pixiTicker.current.start();
 
     }, [radarFrames, isAnimating]);
 
 
     const incrementCurrentFrame = () => {
-        currentFrame.current = (currentFrame.current + 1) % 6;
+        currentFrame.current = (currentFrame.current + 1) % numberOfFrames.current;
         sliderRef.current.noUiSlider.set(currentFrame.current)
         
     }
 
     const decrementCurrentFrame = () => {
-        currentFrame.current = (currentFrame.current - 1 + 6) % 6;
+        currentFrame.current = (currentFrame.current - 1 + numberOfFrames.current) % numberOfFrames.current;
         sliderRef.current.noUiSlider.set(currentFrame.current)
     }
 
@@ -396,7 +508,13 @@ const Map = () => {
 
     const onSliderChange = (value) => {
 
-        currentFrame.current = parseInt(value[0],10);
+        
+        currentFrame.current = parseInt(value[0],10)%numberOfFrames.current;
+        
+        
+        
+
+       
 
 
 
