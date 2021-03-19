@@ -6,7 +6,7 @@ const LEFTLON = -94;  //west
 const RIGHTLON = -79;  //west
 const TOPLAT = 49;  //north
 const BOTTOMLAT = 37; //north
-const MAXFORECASTHOUR = 48;
+const MAXFORECASTHOUR = 12;
 
 
 async function downloadGribData(){
