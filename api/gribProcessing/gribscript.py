@@ -12,6 +12,7 @@ import os
 directory = os.fsencode("./gribfiles")
 
 temperatureData = []
+print(sorted(os.listdir(directory)))
 
 for file in sorted(os.listdir(directory)):
     path = os.path.join(directory,file)
@@ -22,6 +23,8 @@ for file in sorted(os.listdir(directory)):
     temperature = grib.variables['TMP_P0_L103_GLL0'][0:].tolist()
 
     temperatureData.append(temperature)
+
+    print(len(temperatureData))
 
     
 
