@@ -1,6 +1,6 @@
 import * as PIXI from 'pixi.js';
 import { citiesList, projectedCitiesLocations } from './Map';
-import texturePNG from '../deleteLater/sdf.png';
+import texturePNG from '../assets/sdf.png';
 
 
 const createLayout = require('layout-bmfont-text');
