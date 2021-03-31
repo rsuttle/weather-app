@@ -21,6 +21,10 @@
 .eslintcache
 /src/images
 
+.env
+/api/.env
+/api/gribfiles
+
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
