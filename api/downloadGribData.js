@@ -23,20 +23,26 @@ async function downloadGribData(){
 
     //Determine run time based on when the function runs
     var currentHour = new Date().getHours();
-    if(currentHour>=19 && currentHour<=21){
+    if(currentHour>=0 && currentHour<2){
+      //Use yesterday's 12z run
       runTime = '12';
-      var time = new Date().setHours(12,0,0,0);
-      date = convertDateToyyyymmdd(time);
-    }else{
+      time = new Date().setHours(12,0,0,0);
+      time.setDay(time.getDay()-1);
+    }else if (currentHour>=2 && currentHour<=14){
+      //Use today's 0z run
       runTime = '00';
-      var time = new Date().setHours(0,0,0,0);
-      date = convertDateToyyyymmdd(time);
+      time = new Date().setHours(0,0,0,0);
+    } else {
+      //Use today's 12z run
+      runTime = '12';
+      time = new Date().setHours(12,0,0,0);
     }
+    date = convertDateToyyyymmdd(time);
     
     console.log(date)
     console.log(runTime)
 
-    for(let forecastHour = 0; forecastHour <= MAXFORECASTHOUR; forecastHour+=3){
+    for(let forecastHour = 0+30; forecastHour <= MAXFORECASTHOUR+30; forecastHour+=3){
         
         var forecastHourString = forecastHour.toString().padStart(3,"0");
         var url = `https://nomads.ncep.noaa.gov/cgi-bin/filter_gfs_0p25.pl?file=gfs.t${runTime}z.pgrb2.0p25.f${forecastHourString}&lev_2_m_above_ground=on&var_TMP=on&subregion=&leftlon=${LEFTLON}&rightlon=${RIGHTLON}&toplat=${TOPLAT}&bottomlat=${BOTTOMLAT}&dir=%2Fgfs.${date}%2F${runTime}%2Fatmos`;

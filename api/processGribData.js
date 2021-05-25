@@ -61,10 +61,21 @@ const processData = async () => {
 
   //Determine start time based on when the function runs (EDT)
   var currentHour = new Date().getHours();
-  if(currentHour>=19 && currentHour<=21){
+  if(currentHour>=0 && currentHour<2){
+    //Use yesterday's 12z run, which begins yesterday at 8am ET
     startTime = new Date().setHours(8,0,0,0);
-  }else{
+    startTime.setDay(startTime.getDay()-1);
+  }else if (currentHour>=2 && currentHour<=14){
+    //Use today's 0z run, which begins yesterday at 8pm ET
     startTime = new Date().setHours(20,0,0,0);
+    startTime.setDay(startTime.getDay()-1);
+  } else {
+    //Use today's 12z run, which begins today at 8am ET
+    startTime = new Date();
+    startTime.setHours(14,0,0,0);
+    startTime.setDate(startTime.getDate()+1);
+    
+    
   }
   
 

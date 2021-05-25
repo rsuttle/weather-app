@@ -113,9 +113,10 @@ const Map = () => {
             .pinch()
             .wheel()
             .decelerate()
-            .clamp({ left: 480, right: 800, bottom: 350, top: 50 })
+            .clamp({ left: 550, right: 750, bottom: 315, top: 90 })
+            // .clamp({ left: 480, right: 800, bottom: 350, top: 50 })
             //.clamp({ left: 0, top: 0, right: 2000, bottom: 2000 })
-            .clampZoom({ minScale: 4.5, maxScale: 20 })
+            .clampZoom({ minScale: 3.7, maxScale: 20 })
             .moveCenter(665, 210)
 
 
