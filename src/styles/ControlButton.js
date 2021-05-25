@@ -7,8 +7,6 @@ const ControlButton = styled.button`
 @media (min-width: 375px) { 
     width: ${props => (props.userWindowWidth * 1 / 2) / 3}px;
     height: ${props => (props.userWindowWidth * 1 / 2) / 3}px;
-
-
 }
 
 /* Medium devices (tablets, 768px and up)*/

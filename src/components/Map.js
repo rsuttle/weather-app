@@ -18,7 +18,6 @@ import smallColorLegend from "../assets/smallColorLegend.png"
 import largeColorLegend from "../assets/colorLegend.png"
 
 import ControlButton from "../styles/ControlButton";
-import ControlButtonsContainer from "../styles/ControlButtonsContainer";
 
 import {citiesAndLocations} from "../constants/citiesAndLocations";
 
@@ -31,14 +30,11 @@ export var projectedCitiesLocations = [];
 
 dotenv.config();
 
-
 var projection = d3.geoAlbersUsa().scale(1300).translate([487.5, 305]);
 for (const city in citiesAndLocations) {
     citiesList.push(city);
     projectedCitiesLocations.push(projection(citiesAndLocations[city]));
 }
-
-
 
 const Map = () => {
 
@@ -63,21 +59,20 @@ const Map = () => {
     const projPath = useRef(null);
     const loadedFont = useRef(false);
     const sliderRef = useRef(null);
-    const dateTimeRef = useRef(new Date());
     const numberOfFrames = useRef(0);
 
     useEffect(() => {
+        
 
         //Retrieve initial data
         axios.get('http://192.168.0.5:8000')
             .then((response) => {
                 numberOfFrames.current = response.data.dataFrames.length;
                 
-                //"True" frames are 3 hours apart
+                //"True" (non-interpolated) frames are 3 hours apart
                 var minPerFrame = 3*60/(response.data.numInterpolatedFrames+1);
                 minPerFrame = round(minPerFrame,5);
-                console.log("minperframe", minPerFrame)
-
+                
                 setMinutesPerFrame(minPerFrame);
                 setStartTime(new Date(response.data.startTime));
                 setCurrentTime(new Date(response.data.startTime));
@@ -86,14 +81,6 @@ const Map = () => {
             .catch((err) => {
                 console.log(err);
             });
-
-
-
-
-
-
-        
-
 
         //Set up renderer using canvas ref
         pixiRenderer.current = new PIXI.Renderer({ width: userWindowWidth, height: userWindowHeight, backgroundColor: 0x0a0a0a, antialias: true, view: renderCanvas.current, autoDensity: true, resolution: 2, autoResize: true});
@@ -108,6 +95,7 @@ const Map = () => {
         });
         stage.current.addChild(viewport);
 
+        //Initialize viewport settings
         viewport
             .drag()
             .pinch()
@@ -133,13 +121,14 @@ const Map = () => {
         textMesh.current.cacheAsBitmap = false;
 
         loadFont(bitmapFont, (error, font) => {
+            if(error) console.log(error);
             loadedFont.current = true;
             updateText(font, textMesh.current.geometry);
         });
 
     }, []);
 
-    
+    //Initialize slider
     useEffect(() => {
         
         if(sliderRef.current.noUiSlider == null){
@@ -159,186 +148,87 @@ const Map = () => {
     
     },[startTime])
 
-    //For each array element
-    //Convert to a base16 string
-    //Add zero if we get only one character
+    //For each array element, convert to a base16 string
+    //Add zero if we get only one character. From https://stackoverflow.com/questions/13070054/convert-rgb-strings-to-hex-in-javascript
     function convertRGBStringToHex(rgb){
         var a = rgb.split("(")[1].split(")")[0];
         a = a.split(",");
         var b = a.map(function(x){             
             x = parseInt(x).toString(16);      
-            return (x.length==1) ? "0"+x : x;  
+            return (x.length===1) ? "0"+x : x;  
         });
 
         b = "0x"+b.join("")
         return b;
     }
 
+    function drawCurrentFrame(frameToDraw){
+        var color = d3.scaleLinear().domain([0,10,30,40,50,60,80]).range(['#CCCFED','#432d69','#5ef4ff','#34BD4B','#54B82B','#EDF877','#D02D04']);
+
+        frameToDraw.features.forEach((multipolygon) => {
+            multipolygon.coordinates.forEach((polygon) => {
+                var isFirst = true;
+                polygon.forEach((ring) => {
+                    if(isFirst){
+                        graphics.current.beginFill(convertRGBStringToHex(color(multipolygon.value)),1.0);
+                        graphics.current.moveTo(ring[0][0],ring[0][1]);
+                        ring.forEach((coord) => {
+                            graphics.current.lineTo(coord[0],coord[1]);
+                        });
+                        graphics.current.endFill();
+                        isFirst=false;
+                    }
+                    else{
+                        //Draw hole
+                        graphics.current.beginHole();
+                        graphics.current.moveTo(ring[0][0],ring[0][1]);
+                        ring.forEach((coord) => {
+                            graphics.current.lineTo(coord[0],coord[1]);
+                        });
+                        graphics.current.endHole();
+
+                    }
+                })
+            })
+        })
+    }
+
     useEffect(() => {
-
         
-
-     
-      //var color = d3.scaleSequential().domain([7,67]).interpolator(d3.interpolateTurbo)
-
-      
-      var color = d3.scaleLinear().domain([0,10,30,40,50,60,80]).range(['#CCCFED','#432d69','#5ef4ff','#34BD4B','#54B82B','#EDF877','#D02D04'])
-
-        
-       
         function loop() {
             
-
             graphics.current.clear();
-
-
-            
-
-
             graphics.current.lineStyle(0 / pixiViewport.current.transform.scale.x, 0x191a1a, 1);
-            //can refactor this block easily, pull everything out except the currentframe update (maybe?)
-            if (radarFrames !== null) {
 
-                if (isAnimating) {
-                    var frameToDraw = radarFrames[currentFrame.current];
-                    
-                    
-                    frameToDraw.features.forEach((multipolygon) => {
+            if(radarFrames === null){
+                pixiRenderer.current.render(stage.current);
+                return;
+            }
 
-                        
-                        multipolygon.coordinates.forEach((polygon) => {
-                          var isFirst = true;
-                          polygon.forEach((ring) => {
-                                if(isFirst){
-                                    // //draw normally
-                                    // graphics.current.beginHole();
-                                    // graphics.current.moveTo(ring[0][0],ring[0][1]);
-                                    // ring.forEach((coord,index) => {
-                                    //     if(index!==0) graphics.current.lineTo(coord[0],coord[1]);
-                                        
+            var frameToDraw = radarFrames[currentFrame.current];
+            drawCurrentFrame(frameToDraw);
 
-                                    // });
-                                    // graphics.current.endHole();
+            if (isAnimating) incrementCurrentFrame();
 
-                                    graphics.current.beginFill(convertRGBStringToHex(color(multipolygon.value)),1.0);
-                                    graphics.current.moveTo(ring[0][0],ring[0][1]);
-                                    ring.forEach((coord) => {
-                                        graphics.current.lineTo(coord[0],coord[1]);
-                                        
-
-                                    });
-                                    graphics.current.endFill();
-                                    isFirst=false;
-                                    
-                                }
-                                else{
-                                    //draw hole
-                                    graphics.current.beginHole();
-                                    graphics.current.moveTo(ring[0][0],ring[0][1]);
-                                    ring.forEach((coord) => {
-                                        graphics.current.lineTo(coord[0],coord[1]);
-                                        
-
-                                    });
-                                    graphics.current.endHole();
-
-                                }
-                          })
-                          
-                        })
-                    
-                        
-                      });
-
-                 
-                    
-                    incrementCurrentFrame();
-                    
-                }
-                else {
-                    var frameToDraw = radarFrames[currentFrame.current];
-                    
-                    
-                    
-                    frameToDraw.features.forEach((multipolygon) => {
-
-                        
-                        multipolygon.coordinates.forEach((polygon) => {
-                          var isFirst = true;
-                          polygon.forEach((ring) => {
-                                if(isFirst){
-                                    // //draw normally
-                                    // graphics.current.beginHole();
-                                    // graphics.current.moveTo(ring[0][0],ring[0][1]);
-                                    // ring.forEach((coord,index) => {
-                                    //     if(index!==0) graphics.current.lineTo(coord[0],coord[1]);
-                                        
-
-                                    // });
-                                    // graphics.current.endHole();
-
-                                    graphics.current.beginFill(convertRGBStringToHex(color(multipolygon.value)),1.0);
-                                    graphics.current.moveTo(ring[0][0],ring[0][1]);
-                                    ring.forEach((coord) => {
-                                        graphics.current.lineTo(coord[0],coord[1]);
-                                        
-
-                                    });
-                                    graphics.current.endFill();
-                                    isFirst=false;
-                                }
-                                else{
-                                    //draw hole
-                                    graphics.current.beginHole();
-                                    graphics.current.moveTo(ring[0][0],ring[0][1]);
-                                    ring.forEach((coord) => {
-                                        graphics.current.lineTo(coord[0],coord[1]);
-                                        
-
-                                    });
-                                    graphics.current.endHole();
-
-                                }
-                          })
-                          
-                        })
-                    
-                        
-                      });
-
-                }
-
-                //draw states and US outline
+            //Draw states and US outline
             graphics.current.lineStyle(2.0 / pixiViewport.current.transform.scale.x, 0x111222, 1);
             path.current(usMap);
             path.current(usOutline);
 
-
-                if (loadedFont.current !== false) {
-                    //Updating text
-                    
-                    textMesh.current.material.uniforms.drawUV = false;
-                    textMesh.current.material.uniforms.drawDistance = false;
-                    textMesh.current.material.uniforms.smoothing = 0.05 / pixiViewport.current.transform.scale.x;
-                    textMesh.current.material.uniforms.buffer = .27;
-                    textMesh.current.material.uniforms.outlineSize = .25;
-                    textMesh.current.material.uniforms.uScale = 0.4 / pixiViewport.current.transform.scale.x;
-                    
-
-                }
-
-
-
-
-
+            //If text has loaded, update uniforms for text shader
+            if (loadedFont.current !== false) {
+                textMesh.current.material.uniforms.drawUV = false;
+                textMesh.current.material.uniforms.drawDistance = false;
+                textMesh.current.material.uniforms.smoothing = 0.05 / pixiViewport.current.transform.scale.x;
+                textMesh.current.material.uniforms.buffer = .27;
+                textMesh.current.material.uniforms.outlineSize = .25;
+                textMesh.current.material.uniforms.uScale = 0.4 / pixiViewport.current.transform.scale.x;
             }
-
-
-
-            pixiRenderer.current.render(stage.current);
-
+                
+            pixiRenderer.current.render(stage.current);   
         }
 
+        //Set initial values for shader uniforms
         textMesh.current.material.uniforms.drawUV = false;
         textMesh.current.material.uniforms.drawDistance = false;
         textMesh.current.material.uniforms.smoothing = 0.05 / pixiViewport.current.transform.scale.x;
@@ -347,24 +237,21 @@ const Map = () => {
         textMesh.current.material.uniforms.uScale = 0.4 / pixiViewport.current.transform.scale.x;
         pixiViewport.current.addChild(textMesh.current);
 
-        //setup ticker/animation loop
+        //Setup ticker/animation loop
         pixiTicker.current.stop();
-        
         pixiTicker.current.destroy();
 
         pixiTicker.current = new PIXI.Ticker();
         pixiTicker.current.add(loop, PIXI.UPDATE_PRIORITY.HIGH);
         
-       
         pixiTicker.current.start();
 
-    }, [radarFrames, isAnimating,startTime]);
+    }, [radarFrames, isAnimating, startTime]);
 
   
 
     const incrementCurrentFrame = () => {
         currentFrame.current = (currentFrame.current + 1) % numberOfFrames.current;
-        
         sliderRef.current.noUiSlider.set(currentFrame.current);
         var newTime = new Date(startTime);
         newTime.setSeconds(startTime.getSeconds()+minutesPerFrame*currentFrame.current*60);
@@ -380,7 +267,6 @@ const Map = () => {
         setCurrentTime(newTime);
     }
 
-
     const onStartStopButtonClick = () => {
         setIsAnimating(prev => !prev);
     }
@@ -390,40 +276,22 @@ const Map = () => {
     }
 
     const onLeftArrowButtonClick = () => {
-
         decrementCurrentFrame();
     }
 
     const onSliderChange = (value) => {
-
-        
         currentFrame.current = parseInt(value[0],10)%numberOfFrames.current;
 
         var newTime = new Date(startTime);
-        console.log("startTime",startTime);
-        console.log("newtime before, same as st", newTime);
         newTime.setSeconds(startTime.getSeconds()+minutesPerFrame*currentFrame.current*60);
-        console.log("newTime after cF applied", newTime);
-
+        
         setCurrentTime(prev => {
-            console.log("prev time", prev);
-            return newTime;
-            
+           return newTime;
         });
-        
-        
-
-       
-
-
-
     }
 
-   
-
-
     var timeFormatter = Intl.DateTimeFormat('en-US', { timeStyle:'short'});
-    var dateFormatter = Intl.DateTimeFormat('en-US', { month: "long", day: "numeric", year: "numeric" })
+    var dateFormatter = Intl.DateTimeFormat('en-US', { month: "long", day: "numeric", year: "numeric" });
 
 
 
@@ -436,9 +304,6 @@ const Map = () => {
 
             </canvas>
 
-
-
-            
             <Grid style={{position:'absolute',top: userWindowHeight*8/10}} direction="column" alignItems="center" container>
                 <Grid item>
                     <div style={{color: "white", backgroundColor: "rgb(31,31,31,0.8)"}}>
@@ -462,24 +327,12 @@ const Map = () => {
                 </Grid>
                 <Grid item>
                     {userWindowWidth>800 ?
-                    <img width={600} height={50} src={largeColorLegend}></img>
+                    <img width={600} height={50} src={largeColorLegend} alt="Color Legend"></img>
                     :
-                    <img src={smallColorLegend}></img>}
+                    <img src={smallColorLegend} alt="Color Legend"></img>}
                 </Grid>
             </Grid>
-
-            
-
-
-
-
         </div>
-
-
-
-
-
-
     )
 }
 

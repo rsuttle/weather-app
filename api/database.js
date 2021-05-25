@@ -1,7 +1,6 @@
 require('dotenv').config()
 const MongoClient = require('mongodb').MongoClient;
 
-
 const uri = `mongodb+srv://${process.env.MONGODB_USERNAME}:${process.env.MONGODB_PASSWORD}@cluster0.ha6aw.gcp.mongodb.net/WeatherData?retryWrites=true&w=majority&authSource=admin`;
 
 async function insertToDatabase(data) {

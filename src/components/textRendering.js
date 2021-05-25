@@ -1,7 +1,8 @@
+//Code adapted from: https://github.com/PixelsCommander/pixi-sdf-text
+
 import * as PIXI from 'pixi.js';
 import { citiesList, projectedCitiesLocations } from './Map';
 import texturePNG from '../assets/sdf.png';
-
 
 const createLayout = require('layout-bmfont-text');
 const createIndices = require('quad-indices');
@@ -71,7 +72,7 @@ function getPositions(glyphs) {
   return positions;
 }
 
-//creates empty mesh with attrs and uniforms setup
+//Creates empty mesh with attrs and uniforms setup
 function createTextMesh() {
   const geometry = new PIXI.Geometry();
 
@@ -150,9 +151,9 @@ function createTextMesh() {
 
 function updateText(font, geometry) {
   const offsets = [];
-  const scales = [];  //not currently used in shader
+  const scales = []; 
 
-  //only need one offset per word, which makes sense because each vertex in the word needs to have the same
+  //Only need one offset per word, which makes sense because each vertex in the word needs to have the same
   //offset, otherwise the spacing/alignment of the words would be wrong
   for (let i = 0; i < citiesList.length; i++) {
 
@@ -166,7 +167,7 @@ function updateText(font, geometry) {
 
   const attributes = buildMergedText(font, citiesList, offsets, scales);
 
-  //shift vertices left by (textWidth/2), so that the middle of the word is directly over the city
+  //Shift vertices left by (textWidth/2), so that the middle of the word is directly over the city
   for (let i = 0; i < attributes.positions.length; i++) {
     if (i % 2 === 0) attributes.positions[i] -= 85;
   }
@@ -178,7 +179,7 @@ function updateText(font, geometry) {
   geometry.getIndex().update(attributes.indices);
 }
 
-//generates and returns attrs for each word (aka vertices of triangles)
+//Generates and returns attrs for each word (aka vertices of triangles)
 function createTextAttributes(font, text) {
   const layout = createLayout({
     font,
@@ -200,7 +201,6 @@ function createTextAttributes(font, text) {
   return { positions, uvs, indices };
 }
 
-//seems to generate pos,uv attrs every time, doesn't seem necessary
 function buildMergedText(font, textArray, offsets, scales) {
   const positionsArrays = [];
   const uvsArrays = [];
@@ -208,10 +208,10 @@ function buildMergedText(font, textArray, offsets, scales) {
   const offsetsArrays = [];
   const scalesArrays = [];
 
-  //this is used to adjust the indices array, because there is only one pos array with all coords in it
+  //This is used to adjust the indices array, because there is only one pos array with all coords in it
   let maxIndex = 0;
 
-  //loops through all 100 strings, creates the pos,uv,indices,offset,scale attrs
+  //Loops through all strings, creates the pos,uv,indices,offset,scale attrs
   //for all of them, and combines them all properly
   for (let i = 0; i < textArray.length; i++) {
     const attributeCollection = createTextAttributes(font, textArray[i]);
@@ -239,8 +239,6 @@ function buildMergedText(font, textArray, offsets, scales) {
     scalesArrays.push(scalesBuffer);
   }
 
-
-  //I think this just flattens the arrays
   const mergedPositions = mergeTypedArrays(positionsArrays);
   const mergedUvs = mergeTypedArrays(uvsArrays);
   const mergedIndices = mergeTypedArrays(indicesArrays);
@@ -257,7 +255,7 @@ function buildMergedText(font, textArray, offsets, scales) {
 }
 
 
-//just merges the attr arrays for different words into a single attr array (must pass each attr separately)
+//Merges the attr arrays for different words into a single attr array (must pass each attr separately)
 //typedArrays input is just a 2d array, where each row is the attr array for a single word
 function mergeTypedArrays(typedArrays) {
   let length = 0;  //total number of vertices * 2  aka (number of chars *  4  * 2)
@@ -295,6 +293,5 @@ function fillTypedArraySequence(typedArray, sequence) {
 
   return typedArray;
 }
-
 
 export { createTextMesh, updateText };

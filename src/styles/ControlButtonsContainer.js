@@ -4,13 +4,12 @@ import styled from "styled-components";
 const ControlButtonsContainer = styled.div`
 position: absolute;
 
-
 /* Small devices (landscape phones, 576px and up) */
 @media (min-width: 375px) {
     
     top: ${props => props.userWindowHeight * 4 / 5}px;
     left: ${props => props.userWindowWidth / 2 - (1 / 4 * props.userWindowWidth)}px;
- }
+}
 
 /* Medium devices (tablets, 768px and up) */
 @media (min-width: 768px) {
