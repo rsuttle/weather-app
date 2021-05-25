@@ -1,4 +1,3 @@
-
 const axios = require('axios');
 const fspromises = require("fs").promises;
 const fs = require("fs")
@@ -6,13 +5,11 @@ const fs = require("fs")
 const path = require('path');
 const util = require('util');
 
-
 const LEFTLON = -94;  //west
 const RIGHTLON = -79;  //west
 const TOPLAT = 49;  //north
 const BOTTOMLAT = 37; //north
 const MAXFORECASTHOUR = 48;
-
 
 async function downloadGribData(){
 
@@ -27,7 +24,7 @@ async function downloadGribData(){
       //Use yesterday's 12z run
       runTime = '12';
       time = new Date().setHours(12,0,0,0);
-      time.setDay(time.getDay()-1);
+      time.setDate(time.getDate()-1);
     }else if (currentHour>=2 && currentHour<=14){
       //Use today's 0z run
       runTime = '00';
@@ -38,11 +35,8 @@ async function downloadGribData(){
       time = new Date().setHours(12,0,0,0);
     }
     date = convertDateToyyyymmdd(time);
-    
-    console.log(date)
-    console.log(runTime)
 
-    for(let forecastHour = 0+30; forecastHour <= MAXFORECASTHOUR+30; forecastHour+=3){
+    for(let forecastHour = 0; forecastHour <= MAXFORECASTHOUR; forecastHour+=3){
         
         var forecastHourString = forecastHour.toString().padStart(3,"0");
         var url = `https://nomads.ncep.noaa.gov/cgi-bin/filter_gfs_0p25.pl?file=gfs.t${runTime}z.pgrb2.0p25.f${forecastHourString}&lev_2_m_above_ground=on&var_TMP=on&subregion=&leftlon=${LEFTLON}&rightlon=${RIGHTLON}&toplat=${TOPLAT}&bottomlat=${BOTTOMLAT}&dir=%2Fgfs.${date}%2F${runTime}%2Fatmos`;
@@ -60,7 +54,6 @@ async function downloadGribData(){
     }
 }
 
-
 const sleep = (milliseconds) => {
     return new Promise(res => setTimeout(res,milliseconds));
 }
@@ -76,13 +69,7 @@ const convertDateToyyyymmdd = (date) => {
 
   return yyyy+mm+dd;
 
-
-
-
 }
-
-
-
 
 const eraseDirectoryContents = (directoryName) => {
     const directory = directoryName;
@@ -100,10 +87,6 @@ const eraseDirectoryContents = (directoryName) => {
         resolve();
       });
     })
-  
-  
   }
-
-
 
 module.exports = downloadGribData;

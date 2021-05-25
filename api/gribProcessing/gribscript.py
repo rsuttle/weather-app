@@ -7,12 +7,10 @@ import sys
 import os
 
 #File paths are with respect to node.js parent process
-#pls = sys.stdin.read()
 
 directory = os.fsencode("./gribfiles")
 
 temperatureData = []
-print(sorted(os.listdir(directory)))
 
 for file in sorted(os.listdir(directory)):
     path = os.path.join(directory,file)
@@ -23,10 +21,6 @@ for file in sorted(os.listdir(directory)):
     temperature = grib.variables['TMP_P0_L103_GLL0'][0:].tolist()
 
     temperatureData.append(temperature)
-
-    print(len(temperatureData))
-
-    
 
 #Write data to a file
 with open("../temperatureData.json", "w") as f:
