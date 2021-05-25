@@ -4,6 +4,7 @@ https://user-images.githubusercontent.com/44737251/119420330-3d223600-bcca-11eb-
 Press play to loop, and use arrows to view data frame-by-frame. Can pan map and zoom in and out. Currently can view temperature data up to 48 hours into the
 future. Planning to add wind data soon, along with improving the color legend.
 
+Works best with Chrome on Windows.
 
 ## Getting Started with Create React App
 
