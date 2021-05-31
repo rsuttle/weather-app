@@ -5,7 +5,7 @@ const cors = require('cors');
 const MongoClient = require('mongodb').MongoClient;
 
 const downloadGribData = require("./downloadGribData");
-const processGribData = require("./processGribData");
+const {processGribData} = require("./processGribData");
 
 const app = express();
 const port = process.env.PORT;

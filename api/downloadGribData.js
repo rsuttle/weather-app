@@ -11,6 +11,10 @@ const TOPLAT = 49;  //north
 const BOTTOMLAT = 37; //north
 const MAXFORECASTHOUR = 48;
 
+/**
+ * Downloads the GRIB temperature data from the NWS for the interval [0,MAXFORECASTHOUR].
+ * Saves the files to the ./gribfiles directory.
+ */
 async function downloadGribData(){
 
     await eraseDirectoryContents("./gribfiles");
@@ -23,18 +27,18 @@ async function downloadGribData(){
     if(currentHour>=0 && currentHour<2){
       //Use yesterday's 12z run
       runTime = '12';
-      time = new Date().setHours(12,0,0,0);
-      time.setDate(time.getDate()-1);
+      date = new Date().setHours(12,0,0,0);
+      date.setDate(date.getDate()-1);
     }else if (currentHour>=2 && currentHour<=14){
       //Use today's 0z run
       runTime = '00';
-      time = new Date().setHours(0,0,0,0);
+      date = new Date().setHours(0,0,0,0);
     } else {
       //Use today's 12z run
       runTime = '12';
-      time = new Date().setHours(12,0,0,0);
+      date = new Date().setHours(12,0,0,0);
     }
-    date = convertDateToyyyymmdd(time);
+    date = convertDateToyyyymmdd(date);
 
     for(let forecastHour = 0; forecastHour <= MAXFORECASTHOUR; forecastHour+=3){
         
@@ -54,10 +58,20 @@ async function downloadGribData(){
     }
 }
 
+/**
+ * Pauses execution for n milliseconds.
+ * @param {number} milliseconds 
+ * @returns A promise.
+ */
 const sleep = (milliseconds) => {
     return new Promise(res => setTimeout(res,milliseconds));
 }
 
+/**
+ * Converts a date string to yyyymmdd format.
+ * @param {Date} date A date string that will be used to create a Date object.
+ * @returns The inputted date converted to yyyymmdd format.
+ */
 const convertDateToyyyymmdd = (date) => {
   date = new Date(date);
   var mm = date.getMonth() + 1;
@@ -71,6 +85,11 @@ const convertDateToyyyymmdd = (date) => {
 
 }
 
+/**
+ * Erases the contents of a given directory.
+ * @param {string} directoryName 
+ * @returns A promise.
+ */
 const eraseDirectoryContents = (directoryName) => {
     const directory = directoryName;
    
