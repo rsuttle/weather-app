@@ -36,6 +36,9 @@ for (const city in citiesAndLocations) {
     projectedCitiesLocations.push(projection(citiesAndLocations[city]));
 }
 
+/**
+ * Renders the map, weather data, and cities. Also displays the control buttons.
+ */
 const Map = () => {
 
     const userWindowWidth = window.innerWidth;
@@ -62,8 +65,6 @@ const Map = () => {
     const numberOfFrames = useRef(0);
 
     useEffect(() => {
-        
-
         //Retrieve initial data
         axios.get('http://192.168.0.5:8000')
             .then((response) => {
@@ -148,8 +149,12 @@ const Map = () => {
     
     },[startTime])
 
-    //For each array element, convert to a base16 string
-    //Add zero if we get only one character. From https://stackoverflow.com/questions/13070054/convert-rgb-strings-to-hex-in-javascript
+    /**
+     * Converts an RGB string to a hex string.
+     * From: https://stackoverflow.com/questions/13070054/convert-rgb-strings-to-hex-in-javascript
+     * @param {string} rgb An RGB string.
+     * @returns A hexadecimal string equivalent to the RGB string.
+     */
     function convertRGBStringToHex(rgb){
         var a = rgb.split("(")[1].split(")")[0];
         a = a.split(",");
@@ -162,6 +167,10 @@ const Map = () => {
         return b;
     }
 
+    /**
+     * Draws the polygons of the geojson object, and fills them in according to the color scale.
+     * @param {object} frameToDraw The geojson object containing the points that will be drawn.
+     */
     function drawCurrentFrame(frameToDraw){
         var color = d3.scaleLinear().domain([0,10,30,40,50,60,80]).range(['#CCCFED','#432d69','#5ef4ff','#34BD4B','#54B82B','#EDF877','#D02D04']);
 
@@ -195,6 +204,10 @@ const Map = () => {
 
     useEffect(() => {
         
+        /**
+         * The main loop of the program. Clears and redraws the graphics 60 times per second. 
+         * Updates the uniform values for the shader to ensure that the text is the correct size.
+         */
         function loop() {
             
             graphics.current.clear();
@@ -249,7 +262,9 @@ const Map = () => {
     }, [radarFrames, isAnimating, startTime]);
 
   
-
+    /**
+     * Decreases the currentFrame ref by 1. Calculates and sets new time.
+     */
     const incrementCurrentFrame = () => {
         currentFrame.current = (currentFrame.current + 1) % numberOfFrames.current;
         sliderRef.current.noUiSlider.set(currentFrame.current);
@@ -259,6 +274,9 @@ const Map = () => {
         
     }
 
+    /**
+     * Decreases the currentFrame ref by 1. Calculates and sets new time.
+     */
     const decrementCurrentFrame = () => {
         currentFrame.current = (currentFrame.current - 1 + numberOfFrames.current) % numberOfFrames.current;
         sliderRef.current.noUiSlider.set(currentFrame.current);
@@ -279,6 +297,10 @@ const Map = () => {
         decrementCurrentFrame();
     }
 
+    /**
+     * Called when the slider is moved, either by the user or programmatically.
+     * @param {number} value The new value of the slider. 
+     */
     const onSliderChange = (value) => {
         currentFrame.current = parseInt(value[0],10)%numberOfFrames.current;
 
@@ -293,8 +315,8 @@ const Map = () => {
     var timeFormatter = Intl.DateTimeFormat('en-US', { timeStyle:'short'});
     var dateFormatter = Intl.DateTimeFormat('en-US', { month: "long", day: "numeric", year: "numeric" });
 
-
-
+    
+    
     
     return (
 
@@ -336,12 +358,22 @@ const Map = () => {
     )
 }
 
+/**
+ * 
+ * @param {number} numToRound 
+ * @param {number} decimalPlaces 
+ * @returns The number rounded to the requested number of decimal places.
+ */
 function round(numToRound, decimalPlaces){
     numToRound = numToRound * Math.pow(10,decimalPlaces);
     return numToRound/Math.pow(10,decimalPlaces);
 }
 
-export default Map;
+const testables = {
+    convertRGBStringToHex:convertRGBStringToHex,
+    round:round
+}
+export {Map,testables};
 
 
 

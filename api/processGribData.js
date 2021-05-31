@@ -13,10 +13,16 @@ const { start } = require("repl");
 var globalHeight = 49;
 var globalWidth = 61;
 
+/**
+ * Processes the data.
+ */
 const processGribData = () =>{
     extractDataFromFiles();
 }
 
+/**
+ * Spawns python script to extract the temperature data from the grib files. 
+ */
 const extractDataFromFiles = () => {
   
     //Executes python script
@@ -40,13 +46,15 @@ const extractDataFromFiles = () => {
   
     python.on('exit', (code) => {
       console.log(`child process close all stdio with code ${code}`);
-      //grab data from stdio
       processData();
     });
   
 }
 
-//Read in file of 2d data arrays, then send them through processing pipeline
+
+/**
+ * Reads in file of 2d data arrays, then sends them through processing pipeline.
+ */
 const processData = async () => {
   
   const NUM_INTERPOLATED_FRAMES = 15;
@@ -122,7 +130,11 @@ const processData = async () => {
   
 }
 
-//Applies a Gaussian blur to 2d array of numbers, and returns a 1d blurred array.
+/**
+ * Applies a Gaussian blur to 2d array of numbers, and returns a 1d blurred array.
+ * @param {object} image A 2d array of numbers.
+ * @returns The inputted array, blurred and flattened to 1d.
+ */
 const gaussianBlur = (image) => {
     //st dev = 4, kernel size = 5
     const filter = [0.187691, 0.206038, 0.212543, 0.206038, 0.187691];
@@ -180,8 +192,18 @@ const gaussianBlur = (image) => {
   
   
 }
-  
-//Converts an array (1D) of planar coordinates to their latitude/longitude equivalent.
+
+/**
+ * Converts an array of planar coordinates to their latitude/longitude equivalent.
+ * @param {object} oldCoordinates A 1d array of planar coordinates.
+ * @param {number} minLng The minimum longitude.
+ * @param {number} maxLng The maximum longitude.
+ * @param {number} minLat The minimum latitude.
+ * @param {number} maxLat The maximum latitude.
+ * @param {number} width Width of original 2d array.
+ * @param {number} height Height of original 2d array.
+ * @returns The input array, converted to latitude/longitude coordinates.
+ */
 const convertCoordinatesToLatLong = (oldCoordinates, minLng, maxLng, minLat, maxLat, width, height) => {
 
   let newCoordinates = [];
@@ -199,7 +221,11 @@ const convertCoordinatesToLatLong = (oldCoordinates, minLng, maxLng, minLat, max
 
 }
 
-//Accepts 2D array of Kelvin temperature data, returns same data converted to Fahrenheit
+/**
+ * Converts an array of temperature data in Kelvin, and converts it to Fahrenheit.
+ * @param {object} dataArray A 2d array of temperature data, in Kelvin.
+ * @returns The input array, converted to Fahrenheit.
+ */
 const convertKelvinToFahrenheit = (dataArray) => {
   for(let i = 0; i < dataArray.length;i++){
     for(let j = 0; j < dataArray[0].length;j++){
@@ -209,9 +235,11 @@ const convertKelvinToFahrenheit = (dataArray) => {
   return dataArray;
 }
 
-
-//Takes in 1D array of pixel values, feeds it to the contour generator, and then returns the generated
-//geoJson data.
+/**
+ * Feeds data to contour generator, and returns the generated geojson object.
+ * @param {object} pixelVals A 1d array of all temperature values.
+ * @returns The generated geojson contour data.
+ */
 const convertPixelstoGeoJson = (pixelVals) => {
 
   //Creates geoJSON contour generator, results in geojson with bounds of inputted size
@@ -247,7 +275,13 @@ const convertPixelstoGeoJson = (pixelVals) => {
   return resultgeojson;
 }
 
-//Accepts 2 2D arrays, creates X interpolated frames between them, and returns all frames (2+X total) as 2D array
+/**
+ * Interpolates X frames between two given frames.
+ * @param {object} frame1 The starting frame (2d array).
+ * @param {object} frame2 The ending frame (2d array).
+ * @param {number} X The number of frames to interpolate between the starting and ending frames.
+ * @returns An array of 2d arrays. frame1 will be the first frame, and the interpolated frames will follow.
+ */
 const interpolateX = (frame1, frame2, X) => {
   var result = [];
   result.push(frame1);
@@ -275,7 +309,11 @@ const interpolateX = (frame1, frame2, X) => {
   return result;
 }
 
-//Takes a geoJson object and truncates all coordinates to 4 decimal places, then returns the geoJson object
+/**
+ * Truncates the coordinate points of a geojson object to 4 decimal places.
+ * @param {object} geojson The geojson object.
+ * @returns The geojson object with truncated coordinates.
+ */
 const truncateGeojsonCoordinates = (geojson) => {
 
   var truncated = {
@@ -310,6 +348,11 @@ const truncateGeojsonCoordinates = (geojson) => {
 }
 
 //Project generated geojson into planar coordinates, using geoAlbersUsa projection
+/**
+ * Projects the coordinates of a geojson object into planar coordinates, using the geoAlbersUsa projection.
+ * @param {object} geojson The geojson object to project.
+ * @returns The projected geojson object.
+ */
 const projectGeojsonToPlanar = (geojson) => {
 
   var projection = d3.geoAlbersUsa().scale(1300).translate([487.5, 305]);
@@ -346,7 +389,11 @@ const projectGeojsonToPlanar = (geojson) => {
   return projected;
 }
 
-//Flips a 2d array of data vertically. Given n rows, first row is swapped with nth row, second row is swapped with (n-1)th row, and so on.
+/**
+ * Flips a 2d array of data vertically. Given n rows, the first row is swapped with the nth row, the second row is swapped with the (n-1)th row, and so on.
+ * @param {object} dataArray The 2d array to be flipped.
+ * @returns The flipped 2d array.
+ */
 const flipDataVertically = (dataArray) => {
   var flippedData = [];
   for (var row = dataArray.length - 1; row >= 0; row--) {
@@ -356,4 +403,9 @@ const flipDataVertically = (dataArray) => {
   return flippedData;
 }
 
-module.exports = processGribData;
+
+const testables = {
+  flipDataVertically: flipDataVertically,
+  convertKelvinToFahrenheit: convertKelvinToFahrenheit,
+}
+module.exports = {processGribData,testables};
